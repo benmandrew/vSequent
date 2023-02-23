@@ -104,6 +104,30 @@ Definition seq_val (c : ctx) (s : seq_t) : option bool :=
       end
   end.
 
+Lemma satisfying_ctx_r : forall c s l r b b1 b2,
+  (s = seq l r /\ s_l_val c l = Some b1 /\ s_r_val c r = Some b2 /\ b = implb b1 b2) ->
+  (seq_val c s = Some b).
+Proof.
+  intros c s l r b b1 b2 [ Heq [ Hbl [ Hbr Himpl ] ] ].
+  unfold seq_val. subst s. destruct (s_l_val c l). destruct (s_r_val c r).
+    inversion Hbl. inversion Hbr. subst b. reflexivity.
+    discriminate.
+    discriminate.
+Qed.
+
+(* `exists` is required as implies is not an injective function *)
+Lemma satisfying_ctx_l : forall c s l r b,
+  (seq_val c s = Some b /\ s = seq l r) ->
+  (exists b1 b2, s_l_val c l = Some b1 /\ s_r_val c r = Some b2 /\ b = implb b1 b2).
+Proof.
+  intros c s l r b [ Hb Hs ].
+  generalize dependent Hb.
+  unfold seq_val. subst s. destruct (s_l_val c l). destruct (s_r_val c r).
+    intro H. inversion H. exists b0. exists b1. split. reflexivity. split; reflexivity.
+    intro H. discriminate.
+    intro H. discriminate.
+Qed.
+
 Inductive eval : seq_t -> seq_t -> Prop :=
   | neg_l : forall p l r,
       eval (seq (s_l_cons (p_neg p) l) r)
@@ -116,4 +140,5 @@ Lemma eval_preserves_val : forall c s1 s2 b,
   eval s1 s2 -> seq_val c s1 = Some b -> seq_val c s2 = Some b.
 Proof.
   intros c s1 s2 b Hev Heq. induction Hev.
-    unfold seq_val in Heq. unfold s_l_val in Heq.
+    unfold seq_val in Heq. destruct s_r_val in Heq. unfold s_l_val in Heq.
+    Admitted.
