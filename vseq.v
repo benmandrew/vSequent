@@ -70,6 +70,19 @@ Fixpoint s_l_val (c : ctx) (s : s_l) {struct s} : option bool :=
       end
   end.
 
+Lemma s_l_val_ind : forall c p s b,
+  s_l_val c (s_l_cons p s) = Some b -> (exists b1 b2,
+  (b = andb b1 b2) /\ prop_val c p = Some b1 /\ s_l_val c s = Some b2).
+Proof.
+  intros c p s b Heq.
+  induction s.
+    case_eq (prop_val c p).
+      intros b1 Hprop. exists b1. exists true.
+      unfold s_l_val in Heq. rewrite -> Hprop in Heq. inversion Heq. auto.
+      intros Hprop. unfold s_l_val in Heq. rewrite -> Hprop in Heq. discriminate.
+Admitted.
+    
+
 Inductive s_r : Set :=
   | s_r_nil : s_r
   | s_r_cons : prop -> s_r -> s_r.
@@ -136,13 +149,18 @@ Inductive eval : seq_t -> seq_t -> Prop :=
       eval (seq l (s_r_cons (p_neg p) r))
            (seq (s_l_cons p l) r).
 
+
 Lemma eval_preserves_val : forall c s1 s2 b,
   eval s1 s2 -> seq_val c s1 = Some b -> seq_val c s2 = Some b.
 Proof.
   intros c s1 s2 b Hev Heq. induction Hev.
     apply (satisfying_ctx_l c (s_l_cons (p_neg p) l) r b) in Heq.
-    destruct Heq as [ b1 [ b2 Heq ] ].
-    destruct b; destruct b1; destruct b2.
+    destruct Heq as [ b1 [ b2 [ Hl [ Hr Himpl ] ] ] ].
 
-    apply (satisfying_ctx_r c l (s_r_cons p r) true true true).
+    (* apply (satisfying_ctx_l c (s_l_cons (p_neg p) l) r b1) in Hl. *)
+    (* pose proof (s_l_val_ind c) as Hind. *)
+    (* destruct b; destruct b1; destruct b2. *)
+      (* pose proof (s_l_val_ind c) as Hind. *)
+      (* pose proof (s_l_val_ind c) as Hind.
+    apply (satisfying_ctx_r c l (s_r_cons p r) true true true). *)
 Admitted.
