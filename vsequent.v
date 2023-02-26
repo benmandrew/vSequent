@@ -1,3 +1,4 @@
+Require Import Bool.
 Require Import FunInd.
 
 Inductive ctx : Set :=
@@ -58,80 +59,103 @@ Lemma prop_val_neg_b : forall c p b,
   prop_val c p = Some b -> prop_val c (p_neg p) = Some (negb b).
 Proof.
   intros c p b H.
-  rewrite prop_val_equation. rewrite -> H. reflexivity.
+  rewrite prop_val_equation. rewrite H. reflexivity.
 Qed.
 
 Lemma prop_val_neg_n : forall c p,
   prop_val c p = None -> prop_val c (p_neg p) = None.
 Proof.
   intros c p H.
-  rewrite prop_val_equation. rewrite -> H. reflexivity.
+  rewrite prop_val_equation. rewrite H. reflexivity.
 Qed.
 
-Inductive s_l : Set :=
-  | s_l_nil : s_l
-  | s_l_cons : prop -> s_l -> s_l.
+Lemma prop_val_or_b : forall c p0 p1 b0 b1,
+  prop_val c p0 = Some b0 -> prop_val c p1 = Some b1 ->
+  prop_val c (p_or p0 p1) = Some (orb b0 b1).
+Proof.
+  intros c p0 p1 b0 b1 Hprop0 Hprop1.
+  rewrite prop_val_equation. rewrite Hprop0. rewrite Hprop1. reflexivity.
+Qed.
 
-Function s_l_val (c : ctx) (s : s_l) {struct s} : option bool :=
+Lemma prop_val_or_n_l : forall c p0 p1,
+  prop_val c p0 = None -> prop_val c (p_or p0 p1) = None.
+Proof.
+  intros c p0 p1 Hprop.
+  rewrite prop_val_equation. rewrite Hprop. reflexivity.
+Qed.
+
+Lemma prop_val_or_n_r : forall c p0 p1,
+  prop_val c p1 = None -> prop_val c (p_or p0 p1) = None.
+Proof.
+  intros c p0 p1 Hprop0.
+  rewrite prop_val_equation. rewrite Hprop0.
+  case_eq (prop_val c p0); auto.
+Qed.
+
+Inductive seq_l : Set :=
+  | seq_l_nil : seq_l
+  | seq_l_cons : prop -> seq_l -> seq_l.
+
+Function seq_l_val (c : ctx) (s : seq_l) {struct s} : option bool :=
   match s with
-  | s_l_nil => Some true
-  | s_l_cons p s =>
+  | seq_l_nil => Some true
+  | seq_l_cons p s =>
       match prop_val c p with
       | None => None
       | Some b1 =>
-          match s_l_val c s with
+          match seq_l_val c s with
           | None => None
           | Some b2 => Some (andb b1 b2)
           end
       end
   end.
 
-Lemma s_l_val_lem : forall c p s b0 b1,
-  s_l_val c s = Some b0 -> prop_val c p = Some b1 ->
-  s_l_val c (s_l_cons p s) = Some (andb b1 b0).
+Lemma seq_l_val_lem : forall c p s b0 b1,
+  seq_l_val c s = Some b0 -> prop_val c p = Some b1 ->
+  seq_l_val c (seq_l_cons p s) = Some (andb b1 b0).
 Proof.
   intros c p s b0 b1 Hs Hp.
-  rewrite -> (s_l_val_equation c (s_l_cons p s)).
+  rewrite -> (seq_l_val_equation c (seq_l_cons p s)).
   rewrite -> Hp. rewrite -> Hs. reflexivity.
 Qed.
 
-Inductive s_r : Set :=
-  | s_r_nil : s_r
-  | s_r_cons : prop -> s_r -> s_r.
+Inductive seq_r : Set :=
+  | seq_r_nil : seq_r
+  | seq_r_cons : prop -> seq_r -> seq_r.
 
-Function s_r_val (c : ctx) (s : s_r) {struct s} : option bool :=
+Function seq_r_val (c : ctx) (s : seq_r) {struct s} : option bool :=
   match s with
-  | s_r_nil => Some false
-  | s_r_cons p s =>
+  | seq_r_nil => Some false
+  | seq_r_cons p s =>
       match prop_val c p with
       | None => None
       | Some b1 =>
-          match s_r_val c s with
+          match seq_r_val c s with
           | None => None
           | Some b2 => Some (orb b1 b2)
           end
       end
   end.
 
-Lemma s_r_val_lem : forall c p s b0 b1,
-  s_r_val c s = Some b0 -> prop_val c p = Some b1 ->
-  s_r_val c (s_r_cons p s) = Some (orb b1 b0).
+Lemma seq_r_val_lem : forall c p s b0 b1,
+  seq_r_val c s = Some b0 -> prop_val c p = Some b1 ->
+  seq_r_val c (seq_r_cons p s) = Some (orb b1 b0).
 Proof.
   intros c p s b0 b1 Hs Hp.
-  rewrite -> (s_r_val_equation c (s_r_cons p s)).
+  rewrite -> (seq_r_val_equation c (seq_r_cons p s)).
   rewrite -> Hp. rewrite -> Hs. reflexivity.
 Qed.
 
 Inductive seq_t : Set :=
-  | seq : s_l -> s_r -> seq_t.
+  | seq : seq_l -> seq_r -> seq_t.
 
 Definition seq_val (c : ctx) (s : seq_t) : option bool :=
   match s with
   | seq l r =>
-      match s_l_val c l with
+      match seq_l_val c l with
       | None => None
       | Some b1 =>
-          match s_r_val c r with
+          match seq_r_val c r with
           | None => None
           | Some b2 => Some (implb b1 b2)
           end
@@ -139,7 +163,7 @@ Definition seq_val (c : ctx) (s : seq_t) : option bool :=
   end.
 
 Lemma satisfying_ctx_r : forall c l r b b1 b2,
-  (s_l_val c l = Some b1 /\ s_r_val c r = Some b2 /\ b = implb b1 b2) ->
+  (seq_l_val c l = Some b1 /\ seq_r_val c r = Some b2 /\ b = implb b1 b2) ->
   (seq_val c (seq l r) = Some b).
 Proof.
   intros c l r b b1 b2 [ Hbl [ Hbr Himpl ] ].
@@ -149,23 +173,26 @@ Qed.
 (* `exists` is required as implies is not an injective function *)
 Lemma satisfying_ctx_l : forall c l r b,
   (seq_val c (seq l r) = Some b) ->
-  (exists b1 b2, s_l_val c l = Some b1 /\ s_r_val c r = Some b2 /\ b = implb b1 b2).
+  (exists b1 b2, seq_l_val c l = Some b1 /\ seq_r_val c r = Some b2 /\ b = implb b1 b2).
 Proof.
   intros c l r b Hs.
   generalize dependent Hs.
-  unfold seq_val. destruct (s_l_val c l). destruct (s_r_val c r).
-  - intro H. inversion H. exists b0. exists b1. split. reflexivity. split; reflexivity.
-  - intro H. discriminate.
-  - intro H. discriminate.
+  unfold seq_val. destruct (seq_l_val c l). destruct (seq_r_val c r).
+  - intros H. inversion H. exists b0. exists b1. repeat (try split).
+  - intros H. discriminate.
+  - intros H. discriminate.
 Qed.
 
 Inductive eval : seq_t -> seq_t -> Prop :=
   | neg_l : forall p l r,
-      eval (seq (s_l_cons (p_neg p) l) r)
-           (seq l (s_r_cons p r))
+      eval (seq (seq_l_cons (p_neg p) l) r)
+           (seq l (seq_r_cons p r))
   | neg_r : forall p l r,
-      eval (seq l (s_r_cons (p_neg p) r))
-           (seq (s_l_cons p l) r).
+      eval (seq l (seq_r_cons (p_neg p) r))
+           (seq (seq_l_cons p l) r)
+  | or_r : forall p0 p1 l r,
+      eval (seq l (seq_r_cons (p_or p0 p1) r))
+           (seq l (seq_r_cons p0 (seq_r_cons p1 r))).
 
 Lemma negl_preserves_val : forall b0 b1 b2,
   implb (andb (negb b0) b1) b2 = implb b1 (orb b0 b2).
@@ -185,42 +212,65 @@ Lemma eval_preserves_val : forall c s1 s2 b,
   eval s1 s2 -> seq_val c s1 = Some b -> seq_val c s2 = Some b.
 Proof.
   intros c s1 s2 b Hev Heq. induction Hev.
-  - apply (satisfying_ctx_l c (s_l_cons (p_neg p) l) r b) in Heq.
+  - apply (satisfying_ctx_l c (seq_l_cons (p_neg p) l) r b) in Heq.
     destruct Heq as [ b1 [ b2 [ Hl [ Hr Himpl ] ] ] ].
     case_eq (prop_val c p).
     + intros b0 Hprop.
       apply prop_val_neg_b in Hprop as Hprop_neg.
-      rewrite s_l_val_equation in Hl.
+      rewrite seq_l_val_equation in Hl.
       rewrite Hprop_neg in Hl.
       unfold seq_val.
-      rewrite -> (s_r_val_lem c p r b2 b0).
-      * case_eq (s_l_val c l).
+      rewrite -> (seq_r_val_lem c p r b2 b0).
+      * case_eq (seq_l_val c l).
           intros b3 Hl'.
           rewrite Hl' in Hl. inversion Hl. subst.
           rewrite negl_preserves_val. reflexivity.
         intro. rewrite H in Hl. discriminate.
       * assumption.
       * assumption.
-    + intros Hprop. rewrite s_l_val_equation in Hl.
+    + intros Hprop. rewrite seq_l_val_equation in Hl.
       apply prop_val_neg_n in Hprop.
       rewrite Hprop in Hl. discriminate.
-  - apply (satisfying_ctx_l c l (s_r_cons (p_neg p) r) b) in Heq.
+  - apply (satisfying_ctx_l c l (seq_r_cons (p_neg p) r) b) in Heq.
     destruct Heq as [ b1 [ b2 [ Hl [ Hr Himpl ] ] ] ].
     case_eq (prop_val c p).
     + intros b0 Hprop.
       apply prop_val_neg_b in Hprop as Hprop_neg.
-      rewrite s_r_val_equation in Hr.
+      rewrite seq_r_val_equation in Hr.
       rewrite Hprop_neg in Hr.
       unfold seq_val.
-      rewrite (s_l_val_lem c p l b1 b0).
-      * case_eq (s_r_val c r).
+      rewrite (seq_l_val_lem c p l b1 b0).
+      * case_eq (seq_r_val c r).
           intros b3 Hr'.
           rewrite Hr' in Hr. inversion Hr. subst.
           rewrite negr_preserves_val. reflexivity.
         intro. rewrite H in Hr. discriminate.
       * assumption.
       * assumption.
-    + intros Hprop. rewrite s_r_val_equation in Hr.
+    + intros Hprop. rewrite seq_r_val_equation in Hr.
       apply prop_val_neg_n in Hprop.
       rewrite Hprop in Hr. discriminate.
+  - apply (satisfying_ctx_l c l (seq_r_cons (p_or p0 p1) r)) in Heq.
+    destruct Heq as [ b0 [ b1 [ Hl [ Hr Himpl ] ] ] ].
+    apply (satisfying_ctx_r c l (seq_r_cons p0 (seq_r_cons p1 r)) b b0 b1).
+    repeat (try split).
+    + assumption.
+    + case_eq (prop_val c p1); case_eq (prop_val c p0).
+      * intros b2 Hprop0 b3 Hprop1.
+        apply (prop_val_or_b c p0 p1 b2 b3) in Hprop0 as Hprop2.
+        rewrite seq_r_val_equation. rewrite seq_r_val_equation.
+        rewrite Hprop0. rewrite Hprop1.
+        rewrite seq_r_val_equation in Hr. rewrite Hprop2 in Hr.
+        revert Hr. case_eq (seq_r_val c r).
+        --intros b4 Hr Hor.
+          inversion Hor. rewrite <- (orb_assoc b2 b3 b4). reflexivity.
+        --auto.
+        --assumption.
+      * intros Hprop0. apply (prop_val_or_n_l c p0 p1) in Hprop0.
+        rewrite seq_r_val_equation in Hr. rewrite Hprop0 in Hr. discriminate.
+      * intros Hprop0 b2 Hprop1. apply (prop_val_or_n_r c p0 p1) in Hprop1.
+        rewrite seq_r_val_equation in Hr. rewrite Hprop1 in Hr. discriminate.
+      * intros Hprop0. apply (prop_val_or_n_l c p0 p1) in Hprop0.
+        rewrite seq_r_val_equation in Hr. rewrite Hprop0 in Hr. discriminate.
+    + assumption.
 Qed.
