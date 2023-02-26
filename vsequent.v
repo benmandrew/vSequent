@@ -208,69 +208,93 @@ Proof.
   destruct b0; destruct b1; destruct b2; auto.
 Qed.
 
+Lemma eval_preserves_val_neg_r : forall c p l r b,
+  seq_val c (seq (seq_l_cons (p_neg p) l) r) = Some b ->
+  seq_val c (seq l (seq_r_cons p r)) = Some b.
+Proof.
+  intros c p l r b Heq.
+  apply (satisfying_ctx_l c (seq_l_cons (p_neg p) l) r b) in Heq.
+  destruct Heq as [ b1 [ b2 [ Hl [ Hr Himpl ] ] ] ].
+  case_eq (prop_val c p).
+  - intros b0 Hprop.
+    apply prop_val_neg_b in Hprop as Hprop_neg.
+    rewrite seq_l_val_equation in Hl.
+    rewrite Hprop_neg in Hl.
+    unfold seq_val.
+    rewrite -> (seq_r_val_lem c p r b2 b0).
+    + case_eq (seq_l_val c l).
+        intros b3 Hl'.
+        rewrite Hl' in Hl. inversion Hl. subst.
+        rewrite negl_preserves_val. reflexivity.
+      intro. rewrite H in Hl. discriminate.
+    + assumption.
+    + assumption.
+  - intros Hprop. rewrite seq_l_val_equation in Hl.
+    apply prop_val_neg_n in Hprop.
+    rewrite Hprop in Hl. discriminate.
+Qed.
+
+Lemma eval_preserves_val_neg_l : forall c p l r b,
+  seq_val c (seq l (seq_r_cons (p_neg p) r)) = Some b ->
+  seq_val c (seq (seq_l_cons p l) r) = Some b.
+Proof.
+  intros c p l r b Heq.
+  apply (satisfying_ctx_l c l (seq_r_cons (p_neg p) r) b) in Heq.
+  destruct Heq as [ b1 [ b2 [ Hl [ Hr Himpl ] ] ] ].
+  case_eq (prop_val c p).
+  - intros b0 Hprop.
+    apply prop_val_neg_b in Hprop as Hprop_neg.
+    rewrite seq_r_val_equation in Hr.
+    rewrite Hprop_neg in Hr.
+    unfold seq_val.
+    rewrite (seq_l_val_lem c p l b1 b0).
+    + case_eq (seq_r_val c r).
+        intros b3 Hr'.
+        rewrite Hr' in Hr. inversion Hr. subst.
+        rewrite negr_preserves_val. reflexivity.
+      intro. rewrite H in Hr. discriminate.
+    + assumption.
+    + assumption.
+  - intros Hprop. rewrite seq_r_val_equation in Hr.
+    apply prop_val_neg_n in Hprop.
+    rewrite Hprop in Hr. discriminate.
+Qed.
+
+Lemma eval_preserves_val_or_r : forall c p0 p1 l r b,
+  seq_val c (seq l (seq_r_cons (p_or p0 p1) r)) = Some b ->
+  seq_val c (seq l (seq_r_cons p0 (seq_r_cons p1 r))) = Some b.
+Proof.
+  intros c p0 p1 l r b Heq.
+  apply (satisfying_ctx_l c l (seq_r_cons (p_or p0 p1) r)) in Heq.
+  destruct Heq as [ b0 [ b1 [ Hl [ Hr Himpl ] ] ] ].
+  apply (satisfying_ctx_r c l (seq_r_cons p0 (seq_r_cons p1 r)) b b0 b1).
+  repeat (try split).
+  - assumption.
+  - case_eq (prop_val c p1); case_eq (prop_val c p0).
+    + intros b2 Hprop0 b3 Hprop1.
+      apply (prop_val_or_b c p0 p1 b2 b3) in Hprop0 as Hprop2.
+      rewrite seq_r_val_equation. rewrite seq_r_val_equation.
+      rewrite Hprop0. rewrite Hprop1.
+      rewrite seq_r_val_equation in Hr. rewrite Hprop2 in Hr.
+      revert Hr. case_eq (seq_r_val c r).
+      * intros b4 Hr Hor.
+        inversion Hor. rewrite <- (orb_assoc b2 b3 b4). reflexivity.
+      * auto.
+      * assumption.
+    + intros Hprop0. apply (prop_val_or_n_l c p0 p1) in Hprop0.
+      rewrite seq_r_val_equation in Hr. rewrite Hprop0 in Hr. discriminate.
+    + intros Hprop0 b2 Hprop1. apply (prop_val_or_n_r c p0 p1) in Hprop1.
+      rewrite seq_r_val_equation in Hr. rewrite Hprop1 in Hr. discriminate.
+    + intros Hprop0. apply (prop_val_or_n_l c p0 p1) in Hprop0.
+      rewrite seq_r_val_equation in Hr. rewrite Hprop0 in Hr. discriminate.
+  - assumption.
+Qed.
+
 Lemma eval_preserves_val : forall c s1 s2 b,
   eval s1 s2 -> seq_val c s1 = Some b -> seq_val c s2 = Some b.
 Proof.
   intros c s1 s2 b Hev Heq. induction Hev.
-  - apply (satisfying_ctx_l c (seq_l_cons (p_neg p) l) r b) in Heq.
-    destruct Heq as [ b1 [ b2 [ Hl [ Hr Himpl ] ] ] ].
-    case_eq (prop_val c p).
-    + intros b0 Hprop.
-      apply prop_val_neg_b in Hprop as Hprop_neg.
-      rewrite seq_l_val_equation in Hl.
-      rewrite Hprop_neg in Hl.
-      unfold seq_val.
-      rewrite -> (seq_r_val_lem c p r b2 b0).
-      * case_eq (seq_l_val c l).
-          intros b3 Hl'.
-          rewrite Hl' in Hl. inversion Hl. subst.
-          rewrite negl_preserves_val. reflexivity.
-        intro. rewrite H in Hl. discriminate.
-      * assumption.
-      * assumption.
-    + intros Hprop. rewrite seq_l_val_equation in Hl.
-      apply prop_val_neg_n in Hprop.
-      rewrite Hprop in Hl. discriminate.
-  - apply (satisfying_ctx_l c l (seq_r_cons (p_neg p) r) b) in Heq.
-    destruct Heq as [ b1 [ b2 [ Hl [ Hr Himpl ] ] ] ].
-    case_eq (prop_val c p).
-    + intros b0 Hprop.
-      apply prop_val_neg_b in Hprop as Hprop_neg.
-      rewrite seq_r_val_equation in Hr.
-      rewrite Hprop_neg in Hr.
-      unfold seq_val.
-      rewrite (seq_l_val_lem c p l b1 b0).
-      * case_eq (seq_r_val c r).
-          intros b3 Hr'.
-          rewrite Hr' in Hr. inversion Hr. subst.
-          rewrite negr_preserves_val. reflexivity.
-        intro. rewrite H in Hr. discriminate.
-      * assumption.
-      * assumption.
-    + intros Hprop. rewrite seq_r_val_equation in Hr.
-      apply prop_val_neg_n in Hprop.
-      rewrite Hprop in Hr. discriminate.
-  - apply (satisfying_ctx_l c l (seq_r_cons (p_or p0 p1) r)) in Heq.
-    destruct Heq as [ b0 [ b1 [ Hl [ Hr Himpl ] ] ] ].
-    apply (satisfying_ctx_r c l (seq_r_cons p0 (seq_r_cons p1 r)) b b0 b1).
-    repeat (try split).
-    + assumption.
-    + case_eq (prop_val c p1); case_eq (prop_val c p0).
-      * intros b2 Hprop0 b3 Hprop1.
-        apply (prop_val_or_b c p0 p1 b2 b3) in Hprop0 as Hprop2.
-        rewrite seq_r_val_equation. rewrite seq_r_val_equation.
-        rewrite Hprop0. rewrite Hprop1.
-        rewrite seq_r_val_equation in Hr. rewrite Hprop2 in Hr.
-        revert Hr. case_eq (seq_r_val c r).
-        --intros b4 Hr Hor.
-          inversion Hor. rewrite <- (orb_assoc b2 b3 b4). reflexivity.
-        --auto.
-        --assumption.
-      * intros Hprop0. apply (prop_val_or_n_l c p0 p1) in Hprop0.
-        rewrite seq_r_val_equation in Hr. rewrite Hprop0 in Hr. discriminate.
-      * intros Hprop0 b2 Hprop1. apply (prop_val_or_n_r c p0 p1) in Hprop1.
-        rewrite seq_r_val_equation in Hr. rewrite Hprop1 in Hr. discriminate.
-      * intros Hprop0. apply (prop_val_or_n_l c p0 p1) in Hprop0.
-        rewrite seq_r_val_equation in Hr. rewrite Hprop0 in Hr. discriminate.
-    + assumption.
+  - apply eval_preserves_val_neg_r. assumption.
+  - apply eval_preserves_val_neg_l. assumption.
+  - apply eval_preserves_val_or_r. assumption.
 Qed.
