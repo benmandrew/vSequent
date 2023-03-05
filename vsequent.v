@@ -92,6 +92,29 @@ Proof.
   case_eq (prop_val c p0); auto.
 Qed.
 
+Lemma prop_val_and_b : forall c p0 p1 b0 b1,
+  prop_val c p0 = Some b0 -> prop_val c p1 = Some b1 ->
+  prop_val c (p_and p0 p1) = Some (andb b0 b1).
+Proof.
+  intros c p0 p1 b0 b1 Hprop0 Hprop1.
+  rewrite prop_val_equation. rewrite Hprop0. rewrite Hprop1. reflexivity.
+Qed.
+
+Lemma prop_val_and_n_l : forall c p0 p1,
+  prop_val c p0 = None -> prop_val c (p_and p0 p1) = None.
+Proof.
+  intros c p0 p1 Hprop.
+  rewrite prop_val_equation. rewrite Hprop. reflexivity.
+Qed.
+
+Lemma prop_val_and_n_r : forall c p0 p1,
+  prop_val c p1 = None -> prop_val c (p_and p0 p1) = None.
+Proof.
+  intros c p0 p1 Hprop0.
+  rewrite prop_val_equation. rewrite Hprop0.
+  case_eq (prop_val c p0); auto.
+Qed.
+
 Inductive seq_l : Set :=
   | seq_l_nil : seq_l
   | seq_l_cons : prop -> seq_l -> seq_l.
@@ -115,8 +138,8 @@ Lemma seq_l_val_lem : forall c p s b0 b1,
   seq_l_val c (seq_l_cons p s) = Some (andb b1 b0).
 Proof.
   intros c p s b0 b1 Hs Hp.
-  rewrite -> (seq_l_val_equation c (seq_l_cons p s)).
-  rewrite -> Hp. rewrite -> Hs. reflexivity.
+  rewrite (seq_l_val_equation c (seq_l_cons p s)).
+  rewrite Hp. rewrite Hs. reflexivity.
 Qed.
 
 Inductive seq_r : Set :=
@@ -142,8 +165,8 @@ Lemma seq_r_val_lem : forall c p s b0 b1,
   seq_r_val c (seq_r_cons p s) = Some (orb b1 b0).
 Proof.
   intros c p s b0 b1 Hs Hp.
-  rewrite -> (seq_r_val_equation c (seq_r_cons p s)).
-  rewrite -> Hp. rewrite -> Hs. reflexivity.
+  rewrite (seq_r_val_equation c (seq_r_cons p s)).
+  rewrite Hp. rewrite Hs. reflexivity.
 Qed.
 
 Inductive seq_t : Set :=
@@ -183,16 +206,26 @@ Proof.
   - intros H. discriminate.
 Qed.
 
-Inductive eval : seq_t -> seq_t -> Prop :=
+Inductive derivation : Set :=
+  | d_unary : seq_t -> derivation
+  | d_binary : seq_t -> seq_t -> derivation.
+
+Inductive eval_unary : seq_t -> seq_t -> Prop :=
   | neg_l : forall p l r,
-      eval (seq (seq_l_cons (p_neg p) l) r)
+      eval_unary (seq (seq_l_cons (p_neg p) l) r)
            (seq l (seq_r_cons p r))
   | neg_r : forall p l r,
-      eval (seq l (seq_r_cons (p_neg p) r))
+      eval_unary (seq l (seq_r_cons (p_neg p) r))
            (seq (seq_l_cons p l) r)
   | or_r : forall p0 p1 l r,
-      eval (seq l (seq_r_cons (p_or p0 p1) r))
+      eval_unary (seq l (seq_r_cons (p_or p0 p1) r))
            (seq l (seq_r_cons p0 (seq_r_cons p1 r))).
+
+Inductive eval_binary : seq_t -> seq_t -> seq_t -> Prop :=
+  | or_l : forall p0 p1 l r,
+      eval_binary (seq (seq_l_cons (p_or p0 p1) l) r)
+           (seq (seq_l_cons p0 l) r)
+           (seq (seq_l_cons p1 l) r).
 
 Lemma negl_preserves_val : forall b0 b1 b2,
   implb (andb (negb b0) b1) b2 = implb b1 (orb b0 b2).
@@ -208,7 +241,7 @@ Proof.
   destruct b0; destruct b1; destruct b2; auto.
 Qed.
 
-Lemma eval_preserves_val_neg_r : forall c p l r b,
+Lemma eval_preserves_val_neg_l : forall c p l r b,
   seq_val c (seq (seq_l_cons (p_neg p) l) r) = Some b ->
   seq_val c (seq l (seq_r_cons p r)) = Some b.
 Proof.
@@ -221,7 +254,7 @@ Proof.
     rewrite seq_l_val_equation in Hl.
     rewrite Hprop_neg in Hl.
     unfold seq_val.
-    rewrite -> (seq_r_val_lem c p r b2 b0).
+    rewrite (seq_r_val_lem c p r b2 b0).
     + case_eq (seq_l_val c l).
         intros b3 Hl'.
         rewrite Hl' in Hl. inversion Hl. subst.
@@ -234,7 +267,7 @@ Proof.
     rewrite Hprop in Hl. discriminate.
 Qed.
 
-Lemma eval_preserves_val_neg_l : forall c p l r b,
+Lemma eval_preserves_val_neg_r : forall c p l r b,
   seq_val c (seq l (seq_r_cons (p_neg p) r)) = Some b ->
   seq_val c (seq (seq_l_cons p l) r) = Some b.
 Proof.
@@ -290,11 +323,55 @@ Proof.
   - assumption.
 Qed.
 
-Lemma eval_preserves_val : forall c s1 s2 b,
-  eval s1 s2 -> seq_val c s1 = Some b -> seq_val c s2 = Some b.
+Lemma eval_preserves_val_or_l : forall c p0 p1 l r b0 b1 b2,
+  seq_val c (seq (seq_l_cons (p_or p0 p1) l) r) = Some b0 ->
+  seq_val c (seq (seq_l_cons p0 l) r) = Some b1 ->
+  seq_val c (seq (seq_l_cons p1 l) r) = Some b2 ->
+  b0 = andb b1 b2.
 Proof.
-  intros c s1 s2 b Hev Heq. induction Hev.
-  - apply eval_preserves_val_neg_r. assumption.
+  intros c p0 p1 l r b0 b1 b2 Heq0 Heq1 Heq2.
+  apply (satisfying_ctx_l c (seq_l_cons (p_or p0 p1) l) r) in Heq0.
+  destruct Heq0 as [ b00 [ b01 [ Hl0 [ Hr0 Himpl0 ] ] ] ].
+  apply (satisfying_ctx_l c (seq_l_cons p0 l) r) in Heq1.
+  destruct Heq1 as [ b10 [ b11 [ Hl1 [ Hr1 Himpl1 ] ] ] ].
+  apply (satisfying_ctx_l c (seq_l_cons p1 l) r) in Heq2.
+  destruct Heq2 as [ b20 [ b21 [ Hl2 [ Hr2 Himpl2 ] ] ] ].
+  subst. rewrite Hr0 in Hr1. inversion Hr1. rewrite Hr2 in Hr0. inversion Hr0. rewrite H0.
+  clear H0 H1 Hr0 Hr1 Hr2.
+  case_eq (prop_val c p1); case_eq (prop_val c p0).
+  - intros b0 Hprop0 b1 Hprop1.
+    apply (prop_val_or_b c p0 p1 b0 b1) in Hprop0 as Hprop2.
+    rewrite seq_l_val_equation in Hl0. rewrite Hprop2 in Hl0.
+    rewrite seq_l_val_equation in Hl1. rewrite Hprop0 in Hl1.
+    rewrite seq_l_val_equation in Hl2. rewrite Hprop1 in Hl2.
+    case_eq (seq_l_val c l).
+    + intros b Hseql. rewrite Hseql in Hl0. rewrite Hseql in Hl1. rewrite Hseql in Hl2.
+      inversion Hl0. inversion Hl1. inversion Hl2. clear Hl0 Hl1 Hl2.
+      destruct b00; destruct b01; destruct b0; destruct b1;
+      destruct b; destruct b21; destruct b10; destruct b11; auto.
+    + intros Hseql. rewrite Hseql in Hl0. discriminate.
+    + assumption.
+  - intros Hprop.
+    rewrite seq_l_val_equation in Hl1. rewrite Hprop in Hl1. discriminate.
+  - intros b Hprop0 Hprop1.
+    rewrite seq_l_val_equation in Hl2. rewrite Hprop1 in Hl2. discriminate.
+  - intros Hprop.
+    rewrite seq_l_val_equation in Hl1. rewrite Hprop in Hl1. discriminate.
+Qed.
+
+Lemma eval_preserves_val_unary : forall c s0 s1 b,
+  eval_unary s0 s1 -> seq_val c s0 = Some b -> seq_val c s1 = Some b.
+Proof.
+  intros c s0 s1 b Hev Heq. induction Hev.
   - apply eval_preserves_val_neg_l. assumption.
+  - apply eval_preserves_val_neg_r. assumption.
   - apply eval_preserves_val_or_r. assumption.
+Qed.
+
+Lemma eval_preserves_val_binary : forall c s0 s1 s2 b0 b1 b2,
+  eval_binary s0 s1 s2 -> seq_val c s0 = Some b0 ->
+  seq_val c s1 = Some b1 -> seq_val c s2 = Some b2 -> b0 = andb b1 b2.
+Proof.
+  intros c s0 s1 s2 b0 b1 b2 Hev Heq1 Heq2 Heq3. induction Hev.
+  - apply (eval_preserves_val_or_l c p0 p1 l r b0 b1 b2); assumption.
 Qed.
