@@ -7,3 +7,11 @@ Goals for properties I'd like to prove:
 - [ ] **Termination**: the algorithm will always terminate in a finite number of steps.
 - [ ] **Soundness**: if the algorithm says that a statement is a theorem, then it is actually a theorem.
 - [ ] **Completeness**: if a statement is actually a theorem, then the algorithm will conclude that it is a theorem.
+
+---
+
+### Building:
+```bash
+coq_makefile -f _CoqProject -o Makefile
+make
+```

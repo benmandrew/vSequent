@@ -1,5 +1,7 @@
 _build
 .vscode
+Makefile
+Makefile.conf
 
 .*.aux
 .*.d
