@@ -247,4 +247,3 @@ Inductive eval_binary : seq_t -> seq_t -> seq_t -> Prop :=
       eval_binary (seq (seq_l_cons (p_or p0 p1) l) r)
            (seq (seq_l_cons p0 l) r)
            (seq (seq_l_cons p1 l) r).
-
