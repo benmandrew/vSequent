@@ -115,6 +115,29 @@ Proof.
   case_eq (prop_val c p0); auto.
 Qed.
 
+Lemma prop_val_impl_b : forall c p0 p1 b0 b1,
+  prop_val c p0 = Some b0 -> prop_val c p1 = Some b1 ->
+  prop_val c (p_impl p0 p1) = Some (implb b0 b1).
+Proof.
+  intros c p0 p1 b0 b1 Hprop0 Hprop1.
+  rewrite prop_val_equation. rewrite Hprop0. rewrite Hprop1. reflexivity.
+Qed.
+
+Lemma prop_val_impl_n_l : forall c p0 p1,
+  prop_val c p0 = None -> prop_val c (p_impl p0 p1) = None.
+Proof.
+  intros c p0 p1 Hprop.
+  rewrite prop_val_equation. rewrite Hprop. reflexivity.
+Qed.
+
+Lemma prop_val_impl_n_r : forall c p0 p1,
+  prop_val c p1 = None -> prop_val c (p_impl p0 p1) = None.
+Proof.
+  intros c p0 p1 Hprop0.
+  rewrite prop_val_equation. rewrite Hprop0.
+  case_eq (prop_val c p0); auto.
+Qed.
+
 Inductive seq_l : Set :=
   | seq_l_nil : seq_l
   | seq_l_cons : prop -> seq_l -> seq_l.
@@ -201,7 +224,7 @@ Proof.
   intros c l r b Hs.
   generalize dependent Hs.
   unfold seq_val. destruct (seq_l_val c l). destruct (seq_r_val c r).
-  - intros H. inversion H. exists b0. exists b1. repeat (try split).
+  - intros H. inversion H. exists b0. exists b1. repeat split.
   - intros H. discriminate.
   - intros H. discriminate.
 Qed.
@@ -219,7 +242,10 @@ Inductive eval_unary : seq_t -> seq_t -> Prop :=
            (seq (seq_l_cons p l) r)
   | or_r : forall p0 p1 l r,
       eval_unary (seq l (seq_r_cons (p_or p0 p1) r))
-           (seq l (seq_r_cons p0 (seq_r_cons p1 r))).
+           (seq l (seq_r_cons p0 (seq_r_cons p1 r)))
+  | impl_r : forall p0 p1 l r,
+      eval_unary (seq l (seq_r_cons (p_impl p0 p1) r))
+          (seq (seq_l_cons p0 l) (seq_r_cons p1 r)).
 
 Inductive eval_binary : seq_t -> seq_t -> seq_t -> Prop :=
   | or_l : forall p0 p1 l r,
@@ -301,7 +327,7 @@ Proof.
   apply (satisfying_ctx_l c l (seq_r_cons (p_or p0 p1) r)) in Heq.
   destruct Heq as [ b0 [ b1 [ Hl [ Hr Himpl ] ] ] ].
   apply (satisfying_ctx_r c l (seq_r_cons p0 (seq_r_cons p1 r)) b b0 b1).
-  repeat (try split).
+  repeat split.
   - assumption.
   - case_eq (prop_val c p1); case_eq (prop_val c p0).
     + intros b2 Hprop0 b3 Hprop1.
@@ -359,6 +385,42 @@ Proof.
     rewrite seq_l_val_equation in Hl1. rewrite Hprop in Hl1. discriminate.
 Qed.
 
+Lemma eval_preserves_val_impl_r : forall c p0 p1 l r b,
+  seq_val c (seq l (seq_r_cons (p_impl p0 p1) r)) = Some b ->
+  seq_val c (seq (seq_l_cons p0 l) (seq_r_cons p1 r)) = Some b.
+Proof.
+  intros c p0 p1 l r b Heq.
+  apply (satisfying_ctx_l c l (seq_r_cons (p_impl p0 p1) r)) in Heq.
+  destruct Heq as [ b0 [ b1 [ Hl [ Hr Himpl ] ] ] ].
+  case_eq (prop_val c p0); case_eq (prop_val c p1).
+  - intros b2 Hprop0 b3 Hprop1.
+    rewrite seq_r_val_equation in Hr.
+    apply (prop_val_impl_b c p0 p1 b3 b2) in Hprop0 as Hprop2.
+    rewrite Hprop2 in Hr.
+    case_eq (seq_r_val c r).
+    + intros b4 Hseqr.
+      rewrite Hseqr in Hr. inversion Hr. clear Hr.
+      apply (satisfying_ctx_r c (seq_l_cons p0 l) (seq_r_cons p1 r) b (andb b3 b0) (orb b2 b4)).
+      repeat split.
+      * rewrite seq_l_val_equation. rewrite Hprop1. rewrite Hl. reflexivity.
+      * rewrite seq_r_val_equation. rewrite Hprop0. rewrite Hseqr. reflexivity.
+      * subst. destruct b0; destruct b2; destruct b3; destruct b4; auto.
+    + intros Hseqr. rewrite Hseqr in Hr. discriminate.
+    + assumption.
+  - intros Hprop.
+    rewrite seq_r_val_equation in Hr. rewrite prop_val_impl_n_r in Hr.
+    + discriminate.
+    + assumption.
+  - intros b2 Hprop0 Hprop1.
+    rewrite seq_r_val_equation in Hr. rewrite prop_val_impl_n_l in Hr.
+    + discriminate.
+    + assumption.
+  - intros Hprop.
+    rewrite seq_r_val_equation in Hr. rewrite prop_val_impl_n_r in Hr.
+    + discriminate.
+    + assumption.
+Qed.
+
 Lemma eval_preserves_val_unary : forall c s0 s1 b,
   eval_unary s0 s1 -> seq_val c s0 = Some b -> seq_val c s1 = Some b.
 Proof.
@@ -366,6 +428,7 @@ Proof.
   - apply eval_preserves_val_neg_l. assumption.
   - apply eval_preserves_val_neg_r. assumption.
   - apply eval_preserves_val_or_r. assumption.
+  - apply eval_preserves_val_impl_r. assumption.
 Qed.
 
 Lemma eval_preserves_val_binary : forall c s0 s1 s2 b0 b1 b2,
