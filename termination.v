@@ -1,5 +1,6 @@
 Require Import Bool.
 Require Import FunInd.
+Require Import Psatz.
 Require Import vsequent.
 
 Function measure (p : prop) : nat :=
@@ -47,42 +48,16 @@ Proof.
   intros s0 s1 n0 n1 Heval. induction Heval.
   - unfold measure_seq. rewrite measure_l_equation.
     rewrite (measure_r_equation (seq_r_cons p r)).
-    intros Heq0 Heq1. subst. simpl.
-
-(* Lemma measure_neg : forall p n,
-  measure p = n -> measure (p_neg p) = S n.
-Proof.
-  intros p n Heq.
-  rewrite measure_equation. rewrite Heq. reflexivity.
+    intros Heq0 Heq1. subst. simpl. lia.
+  - unfold measure_seq. rewrite measure_r_equation.
+    rewrite (measure_l_equation (seq_l_cons p l)).
+    intros Heq0 Heq1. subst. simpl. lia.
+  - unfold measure_seq. rewrite measure_r_equation.
+    rewrite (measure_r_equation (seq_r_cons p0 (seq_r_cons p1 r))).
+    rewrite (measure_r_equation (seq_r_cons p1 r)).
+    intros Heq0 Heq1. subst. simpl. lia.
+    - unfold measure_seq. rewrite measure_r_equation.
+    rewrite (measure_l_equation (seq_l_cons p0 l)).
+    rewrite (measure_r_equation (seq_r_cons p1 r)).
+    intros Heq0 Heq1. subst. simpl. lia.
 Qed.
-
-Lemma measure_and : forall p0 p1 n0 n1,
-  measure p0 = n0 -> measure p1 = n1 ->
-  measure (p_and p0 p1) = S (n0 + n1).
-Proof.
-  intros p0 p1 n0 n1 Heq0 Heq1.
-  rewrite measure_equation.
-  rewrite Heq0. rewrite Heq1. reflexivity.
-Qed.
-
-Lemma measure_or : forall p0 p1 n0 n1,
-  measure p0 = n0 -> measure p1 = n1 ->
-  measure (p_or p0 p1) = S (n0 + n1).
-Proof.
-  intros p0 p1 n0 n1 Heq0 Heq1.
-  rewrite measure_equation.
-  rewrite Heq0. rewrite Heq1. reflexivity.
-Qed.
-
-Lemma measure_impl : forall p0 p1 n0 n1,
-  measure p0 = n0 -> measure p1 = n1 ->
-  measure (p_impl p0 p1) = S (n0 + n1).
-Proof.
-  intros p0 p1 n0 n1 Heq0 Heq1.
-  rewrite measure_equation.
-  rewrite Heq0. rewrite Heq1. reflexivity.
-Qed. *)
-
-
-
-
