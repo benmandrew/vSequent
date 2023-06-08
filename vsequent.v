@@ -138,75 +138,91 @@ Proof.
   case_eq (prop_val c p0); auto.
 Qed.
 
-Inductive seq_l : Set :=
-  | seq_l_nil : seq_l
-  | seq_l_cons : prop -> seq_l -> seq_l.
+Section seq.
 
-Function seq_l_val (c : ctx) (s : seq_l) {struct s} : option bool :=
-  match s with
-  | seq_l_nil => Some true
-  | seq_l_cons p s =>
-      match prop_val c p with
-      | None => None
-      | Some b1 =>
-          match seq_l_val c s with
-          | None => None
-          | Some b2 => Some (andb b1 b2)
-          end
-      end
-  end.
+  Inductive seq_l : Set :=
+    | seq_l_nil : seq_l
+    | seq_l_cons : prop -> seq_l -> seq_l.
 
-Lemma seq_l_val_lem : forall c p s b0 b1,
-  seq_l_val c s = Some b0 -> prop_val c p = Some b1 ->
-  seq_l_val c (seq_l_cons p s) = Some (andb b1 b0).
-Proof.
-  intros c p s b0 b1 Hs Hp.
-  rewrite (seq_l_val_equation c (seq_l_cons p s)).
-  rewrite Hp. rewrite Hs. reflexivity.
-Qed.
+  Function seq_l_val (c : ctx) (s : seq_l) {struct s} : option bool :=
+    match s with
+    | seq_l_nil => Some true
+    | seq_l_cons p s =>
+        match prop_val c p with
+        | None => None
+        | Some b1 =>
+            match seq_l_val c s with
+            | None => None
+            | Some b2 => Some (andb b1 b2)
+            end
+        end
+    end.
 
-Inductive seq_r : Set :=
-  | seq_r_nil : seq_r
-  | seq_r_cons : prop -> seq_r -> seq_r.
+  Lemma seq_l_val_lem : forall c p s b0 b1,
+    seq_l_val c s = Some b0 -> prop_val c p = Some b1 ->
+    seq_l_val c (seq_l_cons p s) = Some (andb b1 b0).
+  Proof.
+    intros c p s b0 b1 Hs Hp.
+    rewrite (seq_l_val_equation c (seq_l_cons p s)).
+    rewrite Hp. rewrite Hs. reflexivity.
+  Qed.
 
-Function seq_r_val (c : ctx) (s : seq_r) {struct s} : option bool :=
-  match s with
-  | seq_r_nil => Some false
-  | seq_r_cons p s =>
-      match prop_val c p with
-      | None => None
-      | Some b1 =>
-          match seq_r_val c s with
-          | None => None
-          | Some b2 => Some (orb b1 b2)
-          end
-      end
-  end.
+  Function seq_l_permute_aux (p : prop) (s : seq_l) {struct s} : seq_l :=
+    match s with
+    | seq_l_nil => seq_l_cons p seq_l_nil
+    | seq_l_cons _ s => seq_l_permute_aux p s
+    end.
 
-Lemma seq_r_val_lem : forall c p s b0 b1,
-  seq_r_val c s = Some b0 -> prop_val c p = Some b1 ->
-  seq_r_val c (seq_r_cons p s) = Some (orb b1 b0).
-Proof.
-  intros c p s b0 b1 Hs Hp.
-  rewrite (seq_r_val_equation c (seq_r_cons p s)).
-  rewrite Hp. rewrite Hs. reflexivity.
-Qed.
+  Function seq_l_permute (s : seq_l) : seq_l :=
+    match s with
+    | seq_l_nil => seq_l_nil
+    | seq_l_cons p s => seq_l_permute_aux p s
+    end.
 
-Inductive seq_t : Set :=
-  | seq : seq_l -> seq_r -> seq_t.
+  Inductive seq_r : Set :=
+    | seq_r_nil : seq_r
+    | seq_r_cons : prop -> seq_r -> seq_r.
 
-Definition seq_val (c : ctx) (s : seq_t) : option bool :=
-  match s with
-  | seq l r =>
-      match seq_l_val c l with
-      | None => None
-      | Some b1 =>
-          match seq_r_val c r with
-          | None => None
-          | Some b2 => Some (implb b1 b2)
-          end
-      end
-  end.
+  Function seq_r_val (c : ctx) (s : seq_r) {struct s} : option bool :=
+    match s with
+    | seq_r_nil => Some false
+    | seq_r_cons p s =>
+        match prop_val c p with
+        | None => None
+        | Some b1 =>
+            match seq_r_val c s with
+            | None => None
+            | Some b2 => Some (orb b1 b2)
+            end
+        end
+    end.
+
+  Lemma seq_r_val_lem : forall c p s b0 b1,
+    seq_r_val c s = Some b0 -> prop_val c p = Some b1 ->
+    seq_r_val c (seq_r_cons p s) = Some (orb b1 b0).
+  Proof.
+    intros c p s b0 b1 Hs Hp.
+    rewrite (seq_r_val_equation c (seq_r_cons p s)).
+    rewrite Hp. rewrite Hs. reflexivity.
+  Qed.
+
+  Inductive seq_t : Set :=
+    | seq : seq_l -> seq_r -> seq_t.
+
+  Definition seq_val (c : ctx) (s : seq_t) : option bool :=
+    match s with
+    | seq l r =>
+        match seq_l_val c l with
+        | None => None
+        | Some b1 =>
+            match seq_r_val c r with
+            | None => None
+            | Some b2 => Some (implb b1 b2)
+            end
+        end
+    end.
+
+End seq.
 
 Lemma satisfying_ctx_r : forall c l r b b1 b2,
   (seq_l_val c l = Some b1 /\ seq_r_val c r = Some b2 /\ b = implb b1 b2) ->

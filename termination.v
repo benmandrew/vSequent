@@ -125,26 +125,27 @@ Proof.
 Qed.
 
 Lemma measure_zero_iff_normal_form : forall s,
-  measure s = O -> normal_form s.
+  measure s = O <-> normal_form s.
 Proof.
   intros s.
-  unfold measure. destruct s as [ l r ]. induction l; induction r; intros Heq.
-  - split.
-    + unfold normal_form_unary, not. intros [ s Hex ]. inversion Hex.
-    + unfold normal_form_binary, not. intros [ s [ s' Hex ] ]. inversion Hex.
-  - split.
-    + unfold normal_form_unary, not. intros [s Hex].
-      apply Plus.plus_is_O in Heq as [ Hnil Hr ].
-      rewrite measure_r_equation in Hr.
-      apply Plus.plus_is_O in Hr as [ Hp Hr ].
-      apply (plus_to_O (measure_l seq_l_nil)) in Hr.
-      apply IHr in Hr.
-      clear IHr Hnil.
-      revert Hr.
-      intros [ H _ ]. unfold normal_form_unary, not in H. apply H. clear H.
-      apply prop_zero_measure in Hp as [ n Hp ]. subst. exists s.
-      
-      
-
-
-
+  split.
+  - intros Hm. split.
+    + intros [ s' Hex ].
+      remember (measure s') as n1.
+      apply (eval_unary_decreases s s' 0 n1) in Hex.
+      * lia.
+      * assumption.
+      * auto.
+    + intros [ s' [ s'' Hex ] ].
+      remember (measure s') as n1.
+      remember (measure s'') as n2.
+      apply (eval_binary_decreases s s' s'' 0 n1 n2) in Hex.
+      * lia.
+      * assumption.
+      * auto.
+      * auto.
+  - intros [ Hu Hb ].
+    unfold measure. destruct s as [ l r ]. induction l; induction r.
+    + rewrite measure_l_equation. rewrite measure_r_equation. auto.
+    + rewrite measure_l_equation. rewrite measure_r_equation. simpl.
+       apply plus_to_O.
